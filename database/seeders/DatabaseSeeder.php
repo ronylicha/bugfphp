@@ -24,7 +24,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $com1 = User::factory()->create([
-            'name' => 'Test Admin',
+            'name' => 'Test Commercial',
             'email' => 'com@example.com',
             'password' => '123456'
         ]);

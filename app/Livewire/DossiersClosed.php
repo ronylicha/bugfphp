@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\Product;
+use Barryvdh\Debugbar\Facades\Debugbar;
 use Carbon\Carbon;
 use Filament\Support\Enums\IconPosition;
 use Filament\Support\Enums\IconSize;
@@ -55,9 +56,6 @@ class DossiersClosed extends BaseWidget
         $startDate = $this->filters['startDate'] ?? null;
         $endDate = $this->filters['endDate'] ?? null;
         $user = $this->filters['user'] ?? null;
-        if (is_null($user) OR empty($user)) {
-            $user = Auth::id();
-        }
 
         if (is_null($startDate) or is_null($endDate)) {
 
@@ -69,7 +67,8 @@ class DossiersClosed extends BaseWidget
         }
 
         $query = Product::query();
-        if (!is_null($user)) {
+        $query->whereBetween('created_at', [$startDate, $endDate]);
+        if (!is_null($user) OR !empty($user)) {
             $query->where('user_id', $user);
         }
         $query->orWhere(function (Builder $query) use ($startDate, $endDate) {
@@ -108,6 +107,13 @@ class DossiersClosed extends BaseWidget
                         ->color('success')
                         ->placeholder("0,00")
                         ->suffix('€')
+                        ->formatStateUsing(function (int $state, Model $record) {
+                            if($state == 0 OR empty($state) OR is_null($state) OR $record->com_payed OR $record->com_cancel){
+                                return "0,00";
+                            }else{
+                                return $state;
+                            }
+                        })
                         ->summarize(Sum::make()
                             ->query(fn(QueryBuilder $query) => $query->where([
                                 ['com_payed', "=", 0],
@@ -144,6 +150,13 @@ class DossiersClosed extends BaseWidget
                         ->color('danger')
                         ->placeholder("0,00")
                         ->suffix('€')
+                        ->formatStateUsing(function (int $state, Model $record) {
+                            if($state == 0 OR empty($state) OR is_null($state) OR !$record->com_payed OR !$record->com_cancel){
+                                return "0,00";
+                            }else{
+                                return $state;
+                            }
+                        })
                         ->summarize(Sum::make()
                             ->query(fn(QueryBuilder $query) => $query->where([
                                 ['com_payed', "=", 1],
@@ -155,8 +168,9 @@ class DossiersClosed extends BaseWidget
 
             ])
             ->groups([
-                Group::make('user.name')
+                Group::make('user_id')
                     ->titlePrefixedWithLabel(false)
+                    ->getTitleFromRecordUsing(fn (Model $record): string => $record->user()->first()->name." - ".$record->user()->first()->email)
                     ->label(__("User")),
             ])
             ->actions([
